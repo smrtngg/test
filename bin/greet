@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if (( $# != 1 )) || [[ -z $1 ]]; then
+  printf 'Usage: greet NAME\n' >&2
+  exit 64
+fi
+
+printf 'Hello, %s!\n' "$1"
