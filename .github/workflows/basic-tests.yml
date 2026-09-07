@@ -1,4 +1,4 @@
-name: Basic tests
+name: Run Check
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: pr-test-execution-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:

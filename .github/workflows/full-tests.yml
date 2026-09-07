@@ -1,4 +1,4 @@
-name: Full tests
+name: Run Full Check
 
 on:
   pull_request:
@@ -8,13 +8,38 @@ on:
       - labeled
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: pr-test-execution-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
 
 jobs:
-  full-tests:
-    name: Full tests
-    if: github.event.label.name == 'run-full-tests'
+  resolve-service-overrides:
+    name: ${{ github.event.label.name == 'run-full-tests' && github.event.pull_request.draft == false && 'Resolve service overrides' || 'Full tests not requested / resolver' }}
+    if: github.event.label.name == 'run-full-tests' && github.event.pull_request.draft == false
+    outputs:
+      test-sha: ${{ steps.prepare.outputs.test-sha }}
+    permissions:
+      pull-requests: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Снять метку запуска
+        env:
+          GH_TOKEN: ${{ secrets.PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh api --method DELETE "repos/$GH_REPO/issues/$PR_NUMBER/labels/run-full-tests"
+
+      - name: Подготовить конфигурацию полного запуска
+        id: prepare
+        env:
+          TEST_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "test-sha=$TEST_SHA" >> "$GITHUB_OUTPUT"
+          echo "Полные тесты запрошены для $TEST_SHA"
+
+  tests:
+    name: ${{ github.event.label.name == 'run-full-tests' && github.event.pull_request.draft == false && 'Tests' || 'Full tests not requested / tests' }}
+    needs: resolve-service-overrides
     permissions:
       contents: read
     runs-on: ubuntu-latest
@@ -24,4 +49,32 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Запустить полный набор тестов
+        run: ./tests/full.sh
+
+  playwright:
+    name: ${{ github.event.label.name == 'run-full-tests' && github.event.pull_request.draft == false && 'Playwright' || 'Full tests not requested / playwright' }}
+    needs: resolve-service-overrides
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Получить исходный код
+        uses: actions/checkout@v4
+
+      - name: Проверить пользовательский сценарий
+        run: ./tests/basic.sh
+
+  kaiten-lite:
+    name: ${{ github.event.label.name == 'run-full-tests' && github.event.pull_request.draft == false && 'Kaiten Lite' || 'Full tests not requested / kaiten-lite' }}
+    needs: resolve-service-overrides
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Получить исходный код
+        uses: actions/checkout@v4
+
+      - name: Проверить полный сценарий облегчённого приложения
         run: ./tests/full.sh
