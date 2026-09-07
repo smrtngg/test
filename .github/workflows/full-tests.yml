@@ -25,19 +25,3 @@ jobs:
 
       - name: Запустить полный набор тестов
         run: ./tests/full.sh
-
-  reset-trigger:
-    name: Сбросить команду запуска
-    if: always() && github.event.label.name == 'run-full-tests'
-    needs: full-tests
-    permissions:
-      issues: write
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Снять метку запуска
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: gh api --method DELETE "repos/$GH_REPO/issues/$PR_NUMBER/labels/run-full-tests"
